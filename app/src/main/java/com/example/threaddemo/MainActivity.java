@@ -17,9 +17,20 @@ import com.example.threaddemo.databinding.ActivityMainBinding;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 public class MainActivity extends AppCompatActivity {
     ActivityMainBinding binding;
+
+    Future<String> future;
+
+
 
     // Define the handler here, outside of onCreate
     Handler handler = new Handler(Looper.getMainLooper()) {
@@ -46,11 +57,15 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void buttonClick(View view) {
-        long endTime = System.currentTimeMillis() + 20 * 1000;
-        Runnable runnable = new Runnable() {
+
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+
+        future = executor.submit(new Callable<String>() {
             @Override
-            public void run() {
+            public String call() throws Exception {
+                long endTime = System.currentTimeMillis() + 20 * 1000;
                 while (System.currentTimeMillis() < endTime) {
+
                     synchronized (this) {
                         try {
                             wait(endTime - System.currentTimeMillis());
@@ -60,20 +75,27 @@ public class MainActivity extends AppCompatActivity {
                     }
 
                 }
-                ;
-                Message msg = handler.obtainMessage();
-                Bundle bundle = new Bundle();
-                SimpleDateFormat simpleDateFormat = new SimpleDateFormat("YYYY.MM.dd G 'at' HH:mm: ss z");
-                String currentDateandTime = simpleDateFormat.format(new Date());
+                return ("Task Completed!");
 
-                bundle.putString("myKey", currentDateandTime);
-                msg.setData(bundle);
-                handler.sendMessage(msg);
             }
-        };
-        Thread myThread = new Thread(runnable);
-        myThread.start();
+        });
+
+
+        executor.shutdown();
 
     }
 
+    public void statusClick(View view) {
+        if(future.isDone()){
+            String result = null;
+            try{
+                result = future.get(3,TimeUnit.SECONDS);
+            }catch(ExecutionException | InterruptedException | TimeoutException e){
+                e.printStackTrace();
+            }
+            binding.mytextView.setText("Task Completed");
+        }else{
+            binding.mytextView.setText("Waiting");
+        }
+    }
 }
